@@ -1,0 +1,16 @@
+# Python cache and local environment files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Large local datasets and trained artifacts
+data/
+model/
+
+# Runtime logs and OS/editor noise
+*.log
+.vscode/
+.DS_Store
+Thumbs.db

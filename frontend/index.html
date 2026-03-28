@@ -1,0 +1,633 @@
+<!--
+Folder Path: cross-secure/frontend/index.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CROSS-SECURE</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --primary: #00f5ff;
+            --attack: #ff003c;
+            --normal: #00ff88;
+            --card: #0d1117;
+            --muted: #7d8a97;
+            --text: #e9faff;
+            --border: rgba(0, 245, 255, 0.14);
+            --shadow: 0 18px 45px rgba(0, 0, 0, 0.38);
+            --idle: #5b6470;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+            font-family: Consolas, "Cascadia Code", "Courier New", monospace;
+            background:
+                radial-gradient(circle at top left, rgba(0, 245, 255, 0.12), transparent 24%),
+                radial-gradient(circle at top right, rgba(255, 0, 60, 0.09), transparent 18%),
+                linear-gradient(180deg, #05070a 0%, var(--bg) 45%, #070910 100%);
+        }
+
+        .shell {
+            width: min(1380px, calc(100% - 24px));
+            margin: 0 auto;
+            padding: 20px 0 28px;
+        }
+
+        .offline-banner {
+            display: none;
+            margin-bottom: 14px;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 0, 60, 0.32);
+            border-radius: 14px;
+            background: rgba(255, 0, 60, 0.12);
+            color: #ffd5df;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .offline-banner.show { display: block; }
+
+        .panel {
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: linear-gradient(160deg, rgba(13, 17, 23, 0.96), rgba(9, 12, 16, 0.95));
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(6px);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 18px;
+            padding: 24px;
+            margin-bottom: 18px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::after {
+            content: "";
+            position: absolute;
+            inset: auto -10% -60% auto;
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 245, 255, 0.18), transparent 65%);
+            pointer-events: none;
+        }
+
+        .title {
+            margin: 0;
+            font-size: clamp(2rem, 5vw, 3.4rem);
+            letter-spacing: 0.18em;
+            color: var(--primary);
+            text-shadow: 0 0 20px rgba(0, 245, 255, 0.18);
+        }
+
+        .subtitle {
+            margin: 8px 0 0;
+            color: var(--muted);
+            letter-spacing: 0.06em;
+        }
+
+        .header-side {
+            text-align: right;
+            min-width: 240px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .clock {
+            font-size: 1.15rem;
+            color: var(--text);
+            margin-bottom: 14px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 245, 255, 0.18);
+            color: var(--primary);
+            background: rgba(0, 245, 255, 0.1);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-size: 0.82rem;
+        }
+
+        .badge-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .badge.monitoring {
+            color: var(--primary);
+            animation: pulse 1.6s infinite;
+        }
+
+        .badge.idle {
+            color: #a8b0ba;
+            border-color: rgba(168, 176, 186, 0.22);
+            background: rgba(168, 176, 186, 0.08);
+            animation: none;
+        }
+
+        .stats-grid, .charts-grid {
+            display: grid;
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+
+        .stats-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .charts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+        .stat-card {
+            padding: 20px;
+            min-height: 138px;
+        }
+
+        .stat-label {
+            margin: 0 0 14px;
+            color: var(--muted);
+            font-size: 0.86rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .stat-value {
+            margin: 0;
+            font-size: clamp(1.8rem, 4vw, 3rem);
+        }
+
+        .stat-card.normal .stat-value { color: var(--normal); }
+        .stat-card.attack .stat-value { color: var(--attack); }
+
+        .chart-card, .table-card, .footer { padding: 20px; }
+
+        .card-title {
+            margin: 0 0 14px;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.92rem;
+        }
+
+        .chart-shell {
+            position: relative;
+            min-height: 300px;
+        }
+
+        .table-card { overflow: hidden; }
+        .table-scroll { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 13px 12px;
+            border-bottom: 1px solid rgba(125, 138, 151, 0.14);
+            text-align: left;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+
+        th {
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.76rem;
+        }
+
+        tbody tr { animation: rowIn 0.35s ease; }
+
+        tbody tr.attack-row {
+            background: rgba(255, 0, 60, 0.09);
+            animation: rowIn 0.35s ease, attackPulse 2s infinite;
+        }
+
+        tbody tr.normal-row { background: rgba(0, 255, 136, 0.06); }
+
+        .status-chip {
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .status-chip.attack {
+            color: #ffd9e1;
+            background: rgba(255, 0, 60, 0.16);
+            border: 1px solid rgba(255, 0, 60, 0.26);
+        }
+
+        .status-chip.normal {
+            color: #ceffe7;
+            background: rgba(0, 255, 136, 0.12);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .empty-state {
+            padding: 24px 10px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 18px;
+            color: var(--muted);
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 245, 255, 0.28); }
+            70% { box-shadow: 0 0 0 14px rgba(0, 245, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 245, 255, 0); }
+        }
+
+        @keyframes attackPulse {
+            0%, 100% { box-shadow: inset 0 0 0 rgba(255, 0, 60, 0); }
+            50% { box-shadow: inset 0 0 28px rgba(255, 0, 60, 0.08); }
+        }
+
+        @keyframes rowIn {
+            from { opacity: 0; transform: translateY(-12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid, .charts-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 760px) {
+            .shell {
+                width: min(100% - 16px, 1380px);
+                padding-top: 12px;
+            }
+
+            .header, .footer {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-side {
+                text-align: left;
+                min-width: auto;
+            }
+
+            .stats-grid, .charts-grid { grid-template-columns: 1fr; }
+            th, td { font-size: 0.82rem; }
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <div class="offline-banner" id="offlineBanner">API OFFLINE</div>
+
+        <section class="panel header">
+            <div>
+                <h1 class="title">CROSS-SECURE</h1>
+                <p class="subtitle">Real-Time Intrusion Detection System</p>
+            </div>
+            <div class="header-side">
+                <div class="clock" id="liveClock">--:--:--</div>
+                <div class="badge idle" id="statusBadge">
+                    <span class="badge-dot"></span>
+                    <span id="statusText">IDLE</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="stats-grid">
+            <article class="panel stat-card">
+                <p class="stat-label">Total Flows Analyzed</p>
+                <h2 class="stat-value" id="totalFlows">0</h2>
+            </article>
+            <article class="panel stat-card normal">
+                <p class="stat-label">Normal Traffic</p>
+                <h2 class="stat-value" id="normalFlows">0</h2>
+            </article>
+            <article class="panel stat-card attack">
+                <p class="stat-label">Threats Detected</p>
+                <h2 class="stat-value" id="attackFlows">0</h2>
+            </article>
+            <article class="panel stat-card">
+                <p class="stat-label">Detection Rate %</p>
+                <h2 class="stat-value" id="detectionRate">0.00%</h2>
+            </article>
+        </section>
+
+        <section class="charts-grid">
+            <article class="panel chart-card">
+                <h3 class="card-title">Normal vs Attack</h3>
+                <div class="chart-shell">
+                    <canvas id="trafficDoughnut"></canvas>
+                </div>
+            </article>
+            <article class="panel chart-card">
+                <h3 class="card-title">Attacks Per Minute</h3>
+                <div class="chart-shell">
+                    <canvas id="attackLine"></canvas>
+                </div>
+            </article>
+        </section>
+
+        <section class="panel table-card">
+            <h3 class="card-title">Live Alert Table</h3>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Src IP</th>
+                            <th>Dst IP</th>
+                            <th>Port</th>
+                            <th>Protocol</th>
+                            <th>Status</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsBody">
+                        <tr>
+                            <td colspan="7" class="empty-state">Waiting for traffic...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel footer">
+            <div>CROSS-SECURE ML Engine</div>
+            <div>Uptime: <span id="uptimeCounter">00:00:00</span></div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = "http://127.0.0.1:5000";
+        const alertsBody = document.getElementById("alertsBody");
+        const offlineBanner = document.getElementById("offlineBanner");
+        const statusBadge = document.getElementById("statusBadge");
+        const statusText = document.getElementById("statusText");
+        const liveClock = document.getElementById("liveClock");
+        const uptimeCounter = document.getElementById("uptimeCounter");
+        const totalFlows = document.getElementById("totalFlows");
+        const normalFlows = document.getElementById("normalFlows");
+        const attackFlows = document.getElementById("attackFlows");
+        const detectionRate = document.getElementById("detectionRate");
+
+        let apiOnline = false;
+        let serviceStart = Date.now();
+        let latestAlerts = [];
+        let lastAlertSignature = "";
+
+        const chartBaseOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: "#e9faff",
+                        font: { family: "Consolas, Cascadia Code, monospace" }
+                    }
+                }
+            }
+        };
+
+        const doughnutChart = new Chart(document.getElementById("trafficDoughnut"), {
+            type: "doughnut",
+            data: {
+                labels: ["Normal", "Attack"],
+                datasets: [{
+                    data: [0, 0],
+                    backgroundColor: ["#00ff88", "#ff003c"],
+                    borderColor: ["rgba(0, 255, 136, 0.18)", "rgba(255, 0, 60, 0.18)"],
+                    borderWidth: 2
+                }]
+            },
+            options: { ...chartBaseOptions, cutout: "62%" }
+        });
+
+        const attackLine = new Chart(document.getElementById("attackLine"), {
+            type: "line",
+            data: {
+                labels: [],
+                datasets: [{
+                    label: "Attacks / Minute",
+                    data: [],
+                    borderColor: "#ff003c",
+                    backgroundColor: "rgba(255, 0, 60, 0.14)",
+                    fill: true,
+                    borderWidth: 2,
+                    tension: 0.28,
+                    pointRadius: 3
+                }]
+            },
+            options: {
+                ...chartBaseOptions,
+                scales: {
+                    x: {
+                        ticks: { color: "#7d8a97" },
+                        grid: { color: "rgba(125, 138, 151, 0.08)" }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: "#7d8a97", precision: 0 },
+                        grid: { color: "rgba(125, 138, 151, 0.08)" }
+                    }
+                }
+            }
+        });
+
+        function setOfflineState(isOffline) {
+            apiOnline = !isOffline;
+            offlineBanner.classList.toggle("show", isOffline);
+        }
+
+        function updateClock() {
+            liveClock.textContent = new Date().toLocaleString();
+        }
+
+        function formatDuration(totalSeconds) {
+            const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+            const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+            const seconds = String(totalSeconds % 60).padStart(2, "0");
+            return `${hours}:${minutes}:${seconds}`;
+        }
+
+        function updateUptime() {
+            uptimeCounter.textContent = formatDuration(Math.max(0, Math.floor((Date.now() - serviceStart) / 1000)));
+        }
+
+        function updateStatusBadge(status) {
+            const normalized = String(status || "IDLE").toUpperCase();
+            statusText.textContent = normalized;
+            statusBadge.classList.remove("monitoring", "idle");
+            statusBadge.classList.add(normalized === "MONITORING" && apiOnline ? "monitoring" : "idle");
+        }
+
+        function buildAttackTimeline(alerts) {
+            const buckets = [];
+            const now = new Date();
+
+            for (let i = 9; i >= 0; i -= 1) {
+                const bucketTime = new Date(now.getTime() - (i * 60 * 1000));
+                bucketTime.setSeconds(0, 0);
+                buckets.push({
+                    key: bucketTime.toISOString(),
+                    label: bucketTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                    count: 0
+                });
+            }
+
+            alerts.forEach((alert) => {
+                if (String(alert.label).toUpperCase() !== "ATTACK") {
+                    return;
+                }
+
+                const alertTime = new Date(alert.timestamp);
+                alertTime.setSeconds(0, 0);
+                const key = alertTime.toISOString();
+                const bucket = buckets.find((item) => item.key === key);
+                if (bucket) {
+                    bucket.count += 1;
+                }
+            });
+
+            attackLine.data.labels = buckets.map((item) => item.label);
+            attackLine.data.datasets[0].data = buckets.map((item) => item.count);
+            attackLine.update();
+        }
+
+        function renderAlerts(alerts) {
+            if (!alerts.length) {
+                alertsBody.innerHTML = '<tr><td colspan="7" class="empty-state">Waiting for traffic...</td></tr>';
+                return;
+            }
+
+            alertsBody.innerHTML = alerts.slice(0, 20).map((alert) => {
+                const isAttack = String(alert.label).toUpperCase() === "ATTACK";
+                const port = `${alert.src_port || 0} -> ${alert.dst_port || 0}`;
+                return `
+                    <tr class="${isAttack ? "attack-row" : "normal-row"}">
+                        <td>${new Date(alert.timestamp).toLocaleTimeString()}</td>
+                        <td>${alert.src_ip}</td>
+                        <td>${alert.dst_ip}</td>
+                        <td>${port}</td>
+                        <td>${alert.protocol}</td>
+                        <td><span class="status-chip ${isAttack ? "attack" : "normal"}">${alert.label}</span></td>
+                        <td>${alert.confidence}</td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        async function fetchRoot() {
+            const response = await fetch(`${API_BASE}/`);
+            if (!response.ok) {
+                throw new Error("Root endpoint unavailable");
+            }
+
+            const payload = await response.json();
+            if (payload.system_info && payload.system_info.started_at) {
+                serviceStart = new Date(payload.system_info.started_at).getTime();
+            }
+            updateStatusBadge(payload.stats ? payload.stats.system_status : "IDLE");
+            setOfflineState(false);
+        }
+
+        async function fetchStats() {
+            const response = await fetch(`${API_BASE}/stats`);
+            if (!response.ok) {
+                throw new Error("Stats endpoint unavailable");
+            }
+
+            const stats = await response.json();
+            totalFlows.textContent = stats.total || 0;
+            normalFlows.textContent = stats.normal || 0;
+            attackFlows.textContent = stats.attack || 0;
+            detectionRate.textContent = `${Number(stats.detection_rate || 0).toFixed(2)}%`;
+            doughnutChart.data.datasets[0].data = [stats.normal || 0, stats.attack || 0];
+            doughnutChart.update();
+            updateStatusBadge(stats.system_status || "IDLE");
+            setOfflineState(false);
+        }
+
+        async function fetchAlerts() {
+            const response = await fetch(`${API_BASE}/alerts`);
+            if (!response.ok) {
+                throw new Error("Alerts endpoint unavailable");
+            }
+
+            const payload = await response.json();
+            const alerts = Array.isArray(payload.alerts) ? payload.alerts : [];
+            const signature = alerts.length ? `${alerts[0].timestamp}-${alerts[0].src_ip}-${alerts[0].dst_ip}-${alerts[0].label}` : "empty";
+
+            if (signature !== lastAlertSignature) {
+                latestAlerts = alerts;
+                lastAlertSignature = signature;
+                renderAlerts(latestAlerts);
+                buildAttackTimeline(latestAlerts);
+            }
+
+            setOfflineState(false);
+        }
+
+        async function refreshStats() {
+            try {
+                await fetchStats();
+            } catch (error) {
+                setOfflineState(true);
+                updateStatusBadge("IDLE");
+            }
+        }
+
+        async function refreshAlerts() {
+            try {
+                await fetchAlerts();
+            } catch (error) {
+                setOfflineState(true);
+            }
+        }
+
+        async function bootstrap() {
+            try {
+                await fetchRoot();
+                await fetchStats();
+                await fetchAlerts();
+            } catch (error) {
+                setOfflineState(true);
+                updateStatusBadge("IDLE");
+            }
+        }
+
+        updateClock();
+        updateUptime();
+        bootstrap();
+
+        setInterval(updateClock, 1000);
+        setInterval(updateUptime, 1000);
+        setInterval(refreshAlerts, 3000);
+        setInterval(refreshStats, 5000);
+    </script>
+</body>
+</html>

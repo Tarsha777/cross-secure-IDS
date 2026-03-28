@@ -1,0 +1,11 @@
+Flask==3.1.0
+flask-cors==5.0.0
+pandas==2.2.3
+scikit-learn==1.6.1
+xgboost==2.1.4
+lightgbm==4.6.0
+joblib==1.4.2
+numpy==2.2.3
+pyshark==0.6
+scapy==2.6.1
+requests==2.32.3
