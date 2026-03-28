@@ -1,16 +1,62 @@
-# Python cache and local environment files
+# Byte-compiled / cache files
 __pycache__/
 *.py[cod]
+*$py.class
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments and local Python config
+.env
+.env.*
 .venv/
 venv/
 env/
+ENV/
+.python-version
 
-# Large local datasets and trained artifacts
+# Build / packaging outputs
+build/
+dist/
+site/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Project datasets and trained artifacts
 data/
 model/
+models/
+*.joblib
+*.pkl
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.pt
+*.pth
 
-# Runtime logs and OS/editor noise
+# Runtime logs and temp files
 *.log
+logs/
+*.tmp
+*.temp
+
+# IDE / OS files
 .vscode/
+.idea/
 .DS_Store
 Thumbs.db
+ehthumbs.db
+*.swp
+*.swo
+*~
+
+# Frontend dependencies / build outputs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
