@@ -13,6 +13,9 @@ from threading import Lock
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+# Import the shared ensemble helper so the API can expose readiness information.
+from ensemble_predict import CrossSecureEnsemble
+
 try:
     # Prefer Scapy for Windows-friendly interface discovery.
     from scapy.arch.windows import get_windows_if_list
@@ -46,6 +49,11 @@ stats = {
 }
 
 
+# Lazily initialize the ensemble so the API can start even before training finishes.
+ensemble_lock = Lock()
+ensemble_service = None
+
+
 def utc_now() -> datetime:
     """Return the current UTC time with timezone metadata."""
     return datetime.now(timezone.utc)
@@ -65,6 +73,32 @@ def safe_int(value, default=0):
         return int(value)
     except (TypeError, ValueError):
         return int(default)
+
+
+def safe_bool(value, default=False):
+    """Convert payload values into booleans while handling common text forms."""
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "on"}:
+            return True
+        if lowered in {"false", "0", "no", "off"}:
+            return False
+
+    return bool(value) if value is not None else bool(default)
+
+
+def get_ensemble_service() -> CrossSecureEnsemble:
+    """Create the ensemble helper on demand and reuse it across requests."""
+    global ensemble_service
+
+    with ensemble_lock:
+        if ensemble_service is None:
+            ensemble_service = CrossSecureEnsemble()
+
+    return ensemble_service
 
 
 def get_interfaces():
@@ -184,9 +218,11 @@ def sanitize_alert(payload: dict) -> dict:
     """Normalize an incoming live alert into a stable dashboard-friendly shape."""
     label = "ATTACK" if safe_int(payload.get("prediction"), 0) == 1 or str(payload.get("label", "")).upper() == "ATTACK" else "NORMAL"
 
-    return {
+    alert = {
         "src_ip": str(payload.get("src_ip", "unknown")),
         "dst_ip": str(payload.get("dst_ip", "unknown")),
+        "src_host": str(payload.get("src_host", payload.get("src_ip", "unknown"))),
+        "dst_host": str(payload.get("dst_host", payload.get("dst_ip", "unknown"))),
         "src_port": safe_int(payload.get("src_port"), 0),
         "dst_port": safe_int(payload.get("dst_port"), 0),
         "protocol": str(payload.get("protocol", "UNKNOWN")).upper(),
@@ -197,6 +233,23 @@ def sanitize_alert(payload: dict) -> dict:
         "flow_duration": round(safe_float(payload.get("flow_duration"), 0.0), 3),
         "packets_count": safe_int(payload.get("packets_count"), 0),
     }
+
+    if "cicids_confidence" in payload:
+        alert["cicids_confidence"] = round(safe_float(payload.get("cicids_confidence"), 0.0), 4)
+
+    if "nslkdd_confidence" in payload:
+        alert["nslkdd_confidence"] = round(safe_float(payload.get("nslkdd_confidence"), 0.0), 4)
+
+    if "models_agreed" in payload:
+        alert["models_agreed"] = safe_bool(payload.get("models_agreed"), False)
+
+    if "ensemble_mode" in payload:
+        alert["ensemble_mode"] = safe_bool(payload.get("ensemble_mode"), False)
+
+    if "fallback" in payload:
+        alert["fallback"] = safe_bool(payload.get("fallback"), False)
+
+    return alert
 
 
 @app.get("/")
@@ -253,7 +306,27 @@ def get_alerts():
 @app.get("/stats")
 def get_stats():
     """Return aggregate detection statistics for the dashboard."""
-    return jsonify(stats_snapshot())
+    snapshot = stats_snapshot()
+
+    with alerts_lock:
+        latest_alert = live_alerts[-1] if live_alerts else None
+
+    snapshot["last_alert_timestamp"] = (
+        parse_timestamp(latest_alert.get("timestamp")).isoformat()
+        if latest_alert
+        else None
+    )
+
+    return jsonify(snapshot)
+
+
+@app.get("/ensemble-status")
+def ensemble_status():
+    """Return the current ensemble readiness state for the dashboard or API clients."""
+    try:
+        return jsonify(get_ensemble_service().get_status())
+    except Exception as exc:
+        return jsonify({"status": "error", "error": str(exc)}), 500
 
 
 @app.get("/interfaces")

@@ -1,0 +1,64 @@
+CROSS-SECURE UNSW-NB15 EVALUATION
+[LOAD] UNSW train shape: (175341, 45)
+[LOAD] UNSW test shape: (82332, 45)
+[LOAD] UNSW test attack category distribution:
+  Normal: 37,000
+  Generic: 18,871
+  Exploits: 11,132
+  Fuzzers: 6,062
+  DoS: 4,089
+  Reconnaissance: 3,496
+  Analysis: 677
+  Backdoor: 583
+  Shellcode: 378
+  Worms: 44
+[CLEAN] Rows removed after NaN/inf cleanup: 0
+[CLEAN] Binary class counts across both UNSW files:
+  NORMAL (0): 93,000
+  ATTACK (1): 164,673
+[CLEAN] Cleaned train shape: (175341, 45)
+[CLEAN] Cleaned test shape: (82332, 45)
+[MAP] CICIDS populated feature count from UNSW: 77/77
+[MAP] NSL-KDD populated feature count from UNSW: 41/41
+[RESULT] CICIDS model on UNSW-NB15 accuracy: 44.94%
+[RESULT] CICIDS model on UNSW-NB15 F1-Attack: 0.0000
+[RESULT] CICIDS model on UNSW-NB15 classification report:
+              precision    recall  f1-score   support
+
+      NORMAL       0.45      1.00      0.62     37000
+      ATTACK       0.00      0.00      0.00     45332
+
+    accuracy                           0.45     82332
+   macro avg       0.22      0.50      0.31     82332
+weighted avg       0.20      0.45      0.28     82332
+[RESULT] NSL-KDD model on UNSW-NB15 accuracy: 51.42%
+[RESULT] NSL-KDD model on UNSW-NB15 F1-Attack: 0.3245
+[RESULT] NSL-KDD model on UNSW-NB15 classification report:
+              precision    recall  f1-score   support
+
+      NORMAL       0.48      0.88      0.62     37000
+      ATTACK       0.69      0.21      0.32     45332
+
+    accuracy                           0.51     82332
+   macro avg       0.59      0.55      0.47     82332
+weighted avg       0.60      0.51      0.46     82332
+[RESULT] CROSS-SECURE ensemble on UNSW-NB15 accuracy: 44.91%
+[RESULT] CROSS-SECURE ensemble on UNSW-NB15 F1-Attack: 0.0000
+[RESULT] CROSS-SECURE ensemble on UNSW-NB15 classification report:
+              precision    recall  f1-score   support
+
+      NORMAL       0.45      1.00      0.62     37000
+      ATTACK       0.00      0.00      0.00     45332
+
+    accuracy                           0.45     82332
+   macro avg       0.22      0.50      0.31     82332
+weighted avg       0.20      0.45      0.28     82332
+[ENSEMBLE] CICIDS/NSL agreement rate on UNSW test set: 83.14%
+[ENSEMBLE] Ensemble predicted ATTACK on 0.03% of UNSW test rows
++--------------------+----------+-----------+
+| Model              | Accuracy | F1-Attack |
++--------------------+----------+-----------+
+| CICIDS model       |   44.94% |    0.0000 |
+| NSL-KDD model      |   51.42% |    0.3245 |
+| Ensemble (0.7/0.3) |   44.91% |    0.0000 |
++--------------------+----------+-----------+

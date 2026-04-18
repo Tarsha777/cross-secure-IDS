@@ -1,0 +1,154 @@
+CROSS-SECURE NSL-KDD TRAINING
+[LOAD] Train shape after dropping difficulty: (125973, 42)
+[LOAD] Train label distribution:
+  normal: 67,343
+  neptune: 41,214
+  satan: 3,633
+  ipsweep: 3,599
+  portsweep: 2,931
+  smurf: 2,646
+  nmap: 1,493
+  back: 956
+  teardrop: 892
+  warezclient: 890
+  pod: 201
+  guess_passwd: 53
+  buffer_overflow: 30
+  warezmaster: 20
+  land: 18
+  imap: 11
+  rootkit: 10
+  loadmodule: 9
+  ftp_write: 8
+  multihop: 7
+  phf: 4
+  perl: 3
+  spy: 2
+[LOAD] Test shape after dropping difficulty: (22544, 42)
+[LOAD] Test label distribution:
+  normal: 9,711
+  neptune: 4,657
+  guess_passwd: 1,231
+  mscan: 996
+  warezmaster: 944
+  apache2: 737
+  satan: 735
+  processtable: 685
+  smurf: 665
+  back: 359
+  snmpguess: 331
+  saint: 319
+  mailbomb: 293
+  snmpgetattack: 178
+  portsweep: 157
+  ipsweep: 141
+  httptunnel: 133
+  nmap: 73
+  pod: 41
+  buffer_overflow: 20
+  multihop: 18
+  named: 17
+  ps: 15
+  sendmail: 14
+  xterm: 13
+  rootkit: 13
+  teardrop: 12
+  xlock: 9
+  land: 7
+  xsnoop: 4
+  ftp_write: 3
+  loadmodule: 2
+  worm: 2
+  perl: 2
+  sqlattack: 2
+  udpstorm: 2
+  phf: 2
+  imap: 1
+[ENCODE] LabelEncoder applied to: protocol_type
+[ENCODE] LabelEncoder applied to: service
+[ENCODE] LabelEncoder applied to: flag
+[CLEAN] Rows removed after inf/NaN cleanup: 0
+[CLEAN] Combined NSL-KDD class counts:
+  NORMAL (0): 77,054
+  ATTACK (1): 71,463
+[CLEAN] Cleaned train shape: (125973, 42)
+[CLEAN] Cleaned test shape: (22544, 42)
+[FEATURES] Numeric NSL-KDD feature count: 41
+[SAVE] NSL-KDD feature names: E:\Projects\Final-year\Exp_1\model\nslkdd_feature_names.pkl
+[SAVE] NSL-KDD scaler: E:\Projects\Final-year\Exp_1\model\nslkdd_scaler.pkl
+[SPLIT] X_train shape: (118813, 41)
+[SPLIT] X_test shape: (29704, 41)
+[SPLIT] Held-out 80/20 NSL-KDD test class counts:
+  NORMAL (0): 15,411
+  ATTACK (1): 14,293
+[TRAIN] NSL-KDD LightGBM training time: 1.11 seconds
+[RESULT] NSL-KDD in-domain accuracy: 99.56%
+[RESULT] NSL-KDD in-domain F1-Attack: 0.9954
+[RESULT] NSL-KDD in-domain classification report:
+              precision    recall  f1-score   support
+
+      NORMAL       0.99      1.00      1.00     15411
+      ATTACK       1.00      0.99      1.00     14293
+
+    accuracy                           1.00     29704
+   macro avg       1.00      1.00      1.00     29704
+weighted avg       1.00      1.00      1.00     29704
+[SAVE] NSL-KDD model: E:\Projects\Final-year\Exp_1\model\nslkdd_model.pkl
+[LOAD] CICIDS model loaded from: E:\Projects\Final-year\Exp_1\model\cross_secure_model.pkl
+[LOAD] CICIDS scaler loaded from: E:\Projects\Final-year\Exp_1\model\scaler.pkl
+[LOAD] CICIDS feature count: 77
+[LOAD] CICIDS threshold: 0.4000
+[TEST A] CICIDS model on NSL-KDD test data
+[RESULT] CICIDS→NSL (cross-domain) accuracy: 43.08%
+[RESULT] CICIDS→NSL (cross-domain) F1-Attack: 0.0000
+[RESULT] CICIDS→NSL (cross-domain) classification report:
+              precision    recall  f1-score   support
+
+      NORMAL       0.43      1.00      0.60      9711
+      ATTACK       0.00      0.00      0.00     12833
+
+    accuracy                           0.43     22544
+   macro avg       0.22      0.50      0.30     22544
+weighted avg       0.19      0.43      0.26     22544
+[TEST B] NSL-KDD model on CICIDS2017 sample data
+[LOAD] CICIDS sample source file: Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
+[LOAD] CICIDS sample shape after cleanup: (49987, 77)
+[LOAD] CICIDS sample class counts:
+  NORMAL (0): 26,122
+  ATTACK (1): 23,865
+[RESULT] NSL→CICIDS (cross-domain) accuracy: 64.39%
+[RESULT] NSL→CICIDS (cross-domain) F1-Attack: 0.6452
+[RESULT] NSL→CICIDS (cross-domain) classification report:
+              precision    recall  f1-score   support
+
+      NORMAL       0.68      0.61      0.64     26122
+      ATTACK       0.62      0.68      0.65     23865
+
+    accuracy                           0.64     49987
+   macro avg       0.65      0.65      0.64     49987
+weighted avg       0.65      0.64      0.64     49987
+[TEST C] CICIDS in-domain baseline (sample sanity check for F1 only)
+[RESULT] CICIDS sample check (Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv) accuracy: 99.72%
+[RESULT] CICIDS sample check (Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv) F1-Attack: 0.9971
+[RESULT] CICIDS sample check (Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv) classification report:
+              precision    recall  f1-score   support
+
+      NORMAL       1.00      0.99      1.00     26122
+      ATTACK       0.99      1.00      1.00     23865
+
+    accuracy                           1.00     49987
+   macro avg       1.00      1.00      1.00     49987
+weighted avg       1.00      1.00      1.00     49987
+╔══════════════════════════════════════════════════════════════╗
+║         CROSS-SECURE: CROSS-DOMAIN EVALUATION               ║
+╠══════════════════════════════════════════════════════════════╣
+║ Test Scenario          │ Accuracy │ F1-Attack │ Type       ║
+╠══════════════════════════════════════════════════════════════╣
+║ CICIDS → CICIDS        │  99.86% │   1.00    │ ✅ In      ║
+║ NSL-KDD → NSL-KDD      │  99.56% │   1.00    │ ✅ In      ║
+║ CICIDS → NSL-KDD       │  43.08% │   0.00    │ 🔀 Cross   ║
+║ NSL-KDD → CICIDS       │  64.39% │   0.65    │ 🔀 Cross   ║
+╚══════════════════════════════════════════════════════════════╝
+Domain Adaptation Gap: 35.47%
+[SUMMARY] NSL-KDD training time: 1.11 seconds
+[SUMMARY] Domain adaptation gap: 35.47%

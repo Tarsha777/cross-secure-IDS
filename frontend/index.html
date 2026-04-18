@@ -6,7 +6,8 @@ Folder Path: cross-secure/frontend/index.html
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CROSS-SECURE</title>
+    <title>CROSS-SECURE | IDS Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -14,12 +15,13 @@ Folder Path: cross-secure/frontend/index.html
             --primary: #00f5ff;
             --attack: #ff003c;
             --normal: #00ff88;
+            --warning: #ffd700;
+            --caution: #ff8c00;
             --card: #0d1117;
             --muted: #7d8a97;
             --text: #e9faff;
             --border: rgba(0, 245, 255, 0.14);
             --shadow: 0 18px 45px rgba(0, 0, 0, 0.38);
-            --idle: #5b6470;
         }
 
         * { box-sizing: border-box; }
@@ -69,7 +71,7 @@ Folder Path: cross-secure/frontend/index.html
             align-items: center;
             gap: 18px;
             padding: 24px;
-            margin-bottom: 18px;
+            margin-bottom: 0;
             position: relative;
             overflow: hidden;
         }
@@ -145,6 +147,31 @@ Folder Path: cross-secure/frontend/index.html
             animation: none;
         }
 
+        .info-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 18px;
+            align-items: center;
+            padding: 12px 22px;
+            margin-bottom: 18px;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            border-top: none;
+            border-bottom: 1px solid rgba(0, 245, 255, 0.14);
+            background: #0d1117;
+            font-size: 0.84rem;
+        }
+
+        .info-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .info-label { color: var(--primary); }
+        .info-value { color: #ffffff; }
+
         .stats-grid, .charts-grid {
             display: grid;
             gap: 18px;
@@ -204,6 +231,7 @@ Folder Path: cross-secure/frontend/index.html
             text-align: left;
             white-space: nowrap;
             font-size: 0.9rem;
+            vertical-align: middle;
         }
 
         th {
@@ -216,11 +244,35 @@ Folder Path: cross-secure/frontend/index.html
         tbody tr { animation: rowIn 0.35s ease; }
 
         tbody tr.attack-row {
-            background: rgba(255, 0, 60, 0.09);
-            animation: rowIn 0.35s ease, attackPulse 2s infinite;
+            background: rgba(255, 0, 60, 0.15);
         }
 
-        tbody tr.normal-row { background: rgba(0, 255, 136, 0.06); }
+        tbody tr.normal-row {
+            background: rgba(0, 255, 136, 0.06);
+        }
+
+        .attack-flash {
+            animation: attackFlash 1.5s ease-out forwards;
+        }
+
+        .destination-cell {
+            white-space: normal;
+            min-width: 210px;
+        }
+
+        .destination-primary {
+            display: block;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .destination-secondary {
+            display: block;
+            margin-top: 3px;
+            font-size: 0.7em;
+            color: #666;
+            font-family: Consolas, "Cascadia Code", "Courier New", monospace;
+        }
 
         .status-chip {
             padding: 6px 10px;
@@ -243,6 +295,43 @@ Folder Path: cross-secure/frontend/index.html
             border: 1px solid rgba(0, 255, 136, 0.2);
         }
 
+        .confidence-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 84px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            border: 1px solid transparent;
+        }
+
+        .confidence-high {
+            color: #02140a;
+            background: #00ff88;
+            border-color: rgba(0, 255, 136, 0.4);
+        }
+
+        .confidence-medium {
+            color: #1a1400;
+            background: #ffd700;
+            border-color: rgba(255, 215, 0, 0.4);
+        }
+
+        .confidence-low {
+            color: #1f1100;
+            background: #ff8c00;
+            border-color: rgba(255, 140, 0, 0.4);
+        }
+
+        .confidence-minimal {
+            color: #f5f5f5;
+            background: #666;
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+
         .empty-state {
             padding: 24px 10px;
             text-align: center;
@@ -259,20 +348,27 @@ Folder Path: cross-secure/frontend/index.html
             flex-wrap: wrap;
         }
 
+        .footer-copy {
+            color: var(--text);
+        }
+
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(0, 245, 255, 0.28); }
             70% { box-shadow: 0 0 0 14px rgba(0, 245, 255, 0); }
             100% { box-shadow: 0 0 0 0 rgba(0, 245, 255, 0); }
         }
 
-        @keyframes attackPulse {
-            0%, 100% { box-shadow: inset 0 0 0 rgba(255, 0, 60, 0); }
-            50% { box-shadow: inset 0 0 28px rgba(255, 0, 60, 0.08); }
-        }
-
         @keyframes rowIn {
             from { opacity: 0; transform: translateY(-12px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes attackFlash {
+            0%   { background-color: #ff003c; }
+            25%  { background-color: #0d1117; }
+            50%  { background-color: #ff003c; }
+            75%  { background-color: #0d1117; }
+            100% { background-color: rgba(255,0,60,0.15); }
         }
 
         @media (max-width: 1024px) {
@@ -295,6 +391,11 @@ Folder Path: cross-secure/frontend/index.html
                 min-width: auto;
             }
 
+            .info-bar {
+                gap: 8px 14px;
+                font-size: 0.78rem;
+            }
+
             .stats-grid, .charts-grid { grid-template-columns: 1fr; }
             th, td { font-size: 0.82rem; }
         }
@@ -307,7 +408,7 @@ Folder Path: cross-secure/frontend/index.html
         <section class="panel header">
             <div>
                 <h1 class="title">CROSS-SECURE</h1>
-                <p class="subtitle">Real-Time Intrusion Detection System</p>
+                <p class="subtitle">Real-Time Cross-Domain Intrusion Detection System</p>
             </div>
             <div class="header-side">
                 <div class="clock" id="liveClock">--:--:--</div>
@@ -316,6 +417,14 @@ Folder Path: cross-secure/frontend/index.html
                     <span id="statusText">IDLE</span>
                 </div>
             </div>
+        </section>
+
+        <section class="panel info-bar">
+            <span class="info-item"><span class="info-label">&#129504; Ensemble Mode</span></span>
+            <span class="info-item"><span class="info-label">Models:</span><span class="info-value">CICIDS2017 + NSL-KDD</span></span>
+            <span class="info-item"><span class="info-label">Accuracy:</span><span class="info-value">84.86%</span></span>
+            <span class="info-item"><span class="info-label">Features:</span><span class="info-value">77</span></span>
+            <span class="info-item"><span class="info-label">Dataset:</span><span class="info-value">2.5M rows</span></span>
         </section>
 
         <section class="stats-grid">
@@ -359,8 +468,8 @@ Folder Path: cross-secure/frontend/index.html
                     <thead>
                         <tr>
                             <th>Time</th>
-                            <th>Src IP</th>
-                            <th>Dst IP</th>
+                            <th>SRC IP</th>
+                            <th>Destination</th>
                             <th>Port</th>
                             <th>Protocol</th>
                             <th>Status</th>
@@ -377,7 +486,9 @@ Folder Path: cross-secure/frontend/index.html
         </section>
 
         <section class="panel footer">
-            <div>CROSS-SECURE ML Engine</div>
+            <div class="footer-copy">
+                CROSS-SECURE v2.0 | Ensemble IDS | CICIDS2017 + NSL-KDD | LightGBM | <span id="footerYear">----</span>
+            </div>
             <div>Uptime: <span id="uptimeCounter">00:00:00</span></div>
         </section>
     </main>
@@ -394,11 +505,16 @@ Folder Path: cross-secure/frontend/index.html
         const normalFlows = document.getElementById("normalFlows");
         const attackFlows = document.getElementById("attackFlows");
         const detectionRate = document.getElementById("detectionRate");
+        const footerYear = document.getElementById("footerYear");
 
         let apiOnline = false;
         let serviceStart = Date.now();
         let latestAlerts = [];
         let lastAlertSignature = "";
+        let seenAlertIds = new Set();
+        let lastAlertTimestampMs = 0;
+        let statsLastAlertTimestampMs = 0;
+        let latestStatsTotal = 0;
 
         const chartBaseOptions = {
             responsive: true,
@@ -461,6 +577,9 @@ Folder Path: cross-secure/frontend/index.html
         function setOfflineState(isOffline) {
             apiOnline = !isOffline;
             offlineBanner.classList.toggle("show", isOffline);
+            if (isOffline) {
+                updateStatusBadge("IDLE");
+            }
         }
 
         function updateClock() {
@@ -483,6 +602,20 @@ Folder Path: cross-secure/frontend/index.html
             statusText.textContent = normalized;
             statusBadge.classList.remove("monitoring", "idle");
             statusBadge.classList.add(normalized === "MONITORING" && apiOnline ? "monitoring" : "idle");
+        }
+
+        function parseTimestamp(value) {
+            const parsed = Date.parse(value || "");
+            return Number.isFinite(parsed) ? parsed : 0;
+        }
+
+        function refreshMonitoringStatus() {
+            const effectiveLastAlert = Math.max(lastAlertTimestampMs, statsLastAlertTimestampMs);
+            const isMonitoring = apiOnline
+                && latestStatsTotal > 0
+                && effectiveLastAlert > 0
+                && (Date.now() - effectiveLastAlert) <= 30000;
+            updateStatusBadge(isMonitoring ? "MONITORING" : "IDLE");
         }
 
         function buildAttackTimeline(alerts) {
@@ -518,27 +651,81 @@ Folder Path: cross-secure/frontend/index.html
             attackLine.update();
         }
 
+        function buildAlertId(alert) {
+            return [
+                alert.timestamp,
+                alert.src_ip,
+                alert.dst_ip,
+                alert.src_port,
+                alert.dst_port,
+                alert.protocol,
+                alert.label
+            ].join("|");
+        }
+
+        function formatConfidence(confidence) {
+            return `${parseFloat(confidence || 0).toFixed(2)}%`;
+        }
+
+        function getConfidenceClass(confidence) {
+            const value = parseFloat(confidence || 0);
+            if (value >= 90) {
+                return "confidence-high";
+            }
+            if (value >= 70) {
+                return "confidence-medium";
+            }
+            if (value >= 50) {
+                return "confidence-low";
+            }
+            return "confidence-minimal";
+        }
+
+        function renderDestination(alert) {
+            const dstIp = String(alert.dst_ip || "unknown");
+            const dstHost = String(alert.dst_host || dstIp);
+            if (dstHost === dstIp) {
+                return `<span class="destination-primary">${dstIp}</span>`;
+            }
+            return `
+                <span class="destination-primary">${dstHost}</span>
+                <span class="destination-secondary">${dstIp}</span>
+            `;
+        }
+
         function renderAlerts(alerts) {
             if (!alerts.length) {
                 alertsBody.innerHTML = '<tr><td colspan="7" class="empty-state">Waiting for traffic...</td></tr>';
+                seenAlertIds = new Set();
                 return;
             }
 
-            alertsBody.innerHTML = alerts.slice(0, 20).map((alert) => {
+            const visibleAlerts = alerts.slice(0, 20);
+            alertsBody.innerHTML = visibleAlerts.map((alert) => {
                 const isAttack = String(alert.label).toUpperCase() === "ATTACK";
                 const port = `${alert.src_port || 0} -> ${alert.dst_port || 0}`;
+                const confidenceValue = parseFloat(alert.confidence || 0);
+                const alertId = buildAlertId(alert);
+                const shouldFlash = isAttack && !seenAlertIds.has(alertId);
+                const rowClasses = [isAttack ? "attack-row" : "normal-row"];
+                if (shouldFlash) {
+                    rowClasses.push("attack-flash");
+                }
+
                 return `
-                    <tr class="${isAttack ? "attack-row" : "normal-row"}">
+                    <tr class="${rowClasses.join(" ")}">
                         <td>${new Date(alert.timestamp).toLocaleTimeString()}</td>
                         <td>${alert.src_ip}</td>
-                        <td>${alert.dst_ip}</td>
+                        <td class="destination-cell">${renderDestination(alert)}</td>
                         <td>${port}</td>
                         <td>${alert.protocol}</td>
                         <td><span class="status-chip ${isAttack ? "attack" : "normal"}">${alert.label}</span></td>
-                        <td>${alert.confidence}</td>
+                        <td><span class="confidence-badge ${getConfidenceClass(confidenceValue)}">${formatConfidence(confidenceValue)}</span></td>
                     </tr>
                 `;
             }).join("");
+
+            seenAlertIds = new Set(alerts.map(buildAlertId));
         }
 
         async function fetchRoot() {
@@ -551,8 +738,8 @@ Folder Path: cross-secure/frontend/index.html
             if (payload.system_info && payload.system_info.started_at) {
                 serviceStart = new Date(payload.system_info.started_at).getTime();
             }
-            updateStatusBadge(payload.stats ? payload.stats.system_status : "IDLE");
             setOfflineState(false);
+            refreshMonitoringStatus();
         }
 
         async function fetchStats() {
@@ -562,14 +749,17 @@ Folder Path: cross-secure/frontend/index.html
             }
 
             const stats = await response.json();
-            totalFlows.textContent = stats.total || 0;
+            latestStatsTotal = Number(stats.total || 0);
+            statsLastAlertTimestampMs = parseTimestamp(stats.last_alert_timestamp);
+
+            totalFlows.textContent = latestStatsTotal;
             normalFlows.textContent = stats.normal || 0;
             attackFlows.textContent = stats.attack || 0;
             detectionRate.textContent = `${Number(stats.detection_rate || 0).toFixed(2)}%`;
             doughnutChart.data.datasets[0].data = [stats.normal || 0, stats.attack || 0];
             doughnutChart.update();
-            updateStatusBadge(stats.system_status || "IDLE");
             setOfflineState(false);
+            refreshMonitoringStatus();
         }
 
         async function fetchAlerts() {
@@ -580,7 +770,13 @@ Folder Path: cross-secure/frontend/index.html
 
             const payload = await response.json();
             const alerts = Array.isArray(payload.alerts) ? payload.alerts : [];
-            const signature = alerts.length ? `${alerts[0].timestamp}-${alerts[0].src_ip}-${alerts[0].dst_ip}-${alerts[0].label}` : "empty";
+            const signature = alerts.length ? buildAlertId(alerts[0]) : "empty";
+
+            if (alerts.length) {
+                lastAlertTimestampMs = parseTimestamp(alerts[0].timestamp);
+            } else {
+                lastAlertTimestampMs = 0;
+            }
 
             if (signature !== lastAlertSignature) {
                 latestAlerts = alerts;
@@ -590,6 +786,7 @@ Folder Path: cross-secure/frontend/index.html
             }
 
             setOfflineState(false);
+            refreshMonitoringStatus();
         }
 
         async function refreshStats() {
@@ -597,7 +794,6 @@ Folder Path: cross-secure/frontend/index.html
                 await fetchStats();
             } catch (error) {
                 setOfflineState(true);
-                updateStatusBadge("IDLE");
             }
         }
 
@@ -610,6 +806,8 @@ Folder Path: cross-secure/frontend/index.html
         }
 
         async function bootstrap() {
+            footerYear.textContent = new Date().getFullYear();
+
             try {
                 await fetchRoot();
                 await fetchStats();

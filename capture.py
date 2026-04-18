@@ -12,13 +12,15 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
 
 # Import third-party modules for packet capture, inference, and API delivery.
-import joblib
 import numpy as np
-import pandas as pd
 import pyshark
 import requests
+
+# Import the shared ensemble inference helper.
+from ensemble_predict import CrossSecureEnsemble
 
 try:
     # Prefer Windows interface discovery via Scapy when available.
@@ -33,15 +35,6 @@ except Exception:  # pragma: no cover
     get_if_list = None
 
 
-# Resolve important project paths relative to this file so the script works from the project root.
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(BASE_DIR, "model")
-MODEL_PATH = os.path.join(MODEL_DIR, "cross_secure_model.pkl")
-SCALER_PATH = os.path.join(MODEL_DIR, "scaler.pkl")
-FEATURES_PATH = os.path.join(MODEL_DIR, "feature_names.pkl")
-THRESHOLD_PATH = os.path.join(MODEL_DIR, "threshold.pkl")
-
-
 # Configure flow lifecycle thresholds and the Flask API target.
 API_URL = "http://127.0.0.1:5000/live-alert"
 FLOW_IDLE_TIMEOUT_SECONDS = 5.0
@@ -50,71 +43,19 @@ ACTIVE_IDLE_SPLIT_SECONDS = 1.0
 REQUEST_TIMEOUT_SECONDS = 5
 
 
-# Define the default CICIDS-style feature names this capture engine computes.
-DEFAULT_FEATURE_ORDER = [
-    "Flow Duration",
-    "Total Fwd Packets",
-    "Total Backward Packets",
-    "Total Length of Fwd Packets",
-    "Total Length of Bwd Packets",
-    "Fwd Packet Length Max",
-    "Fwd Packet Length Min",
-    "Fwd Packet Length Mean",
-    "Bwd Packet Length Max",
-    "Bwd Packet Length Min",
-    "Bwd Packet Length Mean",
-    "Flow Bytes/s",
-    "Flow Packets/s",
-    "Flow IAT Mean",
-    "Flow IAT Std",
-    "Flow IAT Max",
-    "Flow IAT Min",
-    "Fwd IAT Mean",
-    "Fwd IAT Std",
-    "Fwd IAT Max",
-    "Fwd IAT Min",
-    "Bwd IAT Mean",
-    "Bwd IAT Std",
-    "Bwd IAT Max",
-    "Bwd IAT Min",
-    "Fwd PSH Flags",
-    "Bwd PSH Flags",
-    "Fwd URG Flags",
-    "Bwd URG Flags",
-    "Fwd Header Length",
-    "Bwd Header Length",
-    "Fwd Packets/s",
-    "Bwd Packets/s",
-    "Packet Length Min",
-    "Packet Length Max",
-    "Packet Length Mean",
-    "Packet Length Std",
-    "Packet Length Variance",
-    "FIN Flag Count",
-    "SYN Flag Count",
-    "RST Flag Count",
-    "PSH Flag Count",
-    "ACK Flag Count",
-    "URG Flag Count",
-    "Average Packet Size",
-    "Avg Fwd Segment Size",
-    "Avg Bwd Segment Size",
-    "Init_Win_bytes_forward",
-    "Init_Win_bytes_backward",
-    "Active Mean",
-    "Active Std",
-    "Active Max",
-    "Active Min",
-    "Idle Mean",
-    "Idle Std",
-    "Idle Max",
-    "Idle Min",
-]
-
-
 def utc_now_iso() -> str:
     """Return the current UTC time in ISO-8601 format."""
     return datetime.now(timezone.utc).isoformat()
+
+
+@lru_cache(maxsize=512)
+def resolve_hostname(ip: str) -> str:
+    """Resolve an IP address to a hostname and fall back to the original IP."""
+    try:
+        hostname = socket.gethostbyaddr(ip)[0]
+        return hostname
+    except Exception:
+        return ip
 
 
 def safe_float(value, default=0.0):
@@ -411,11 +352,8 @@ class LiveTrafficCapture:
     """Capture live traffic, build flows, extract features, and run predictions."""
 
     def __init__(self):
-        # Load model artifacts once on startup.
-        self.model = joblib.load(MODEL_PATH)
-        self.scaler = joblib.load(SCALER_PATH)
-        self.threshold = joblib.load(THRESHOLD_PATH)
-        self.feature_names = self.load_feature_names()
+        # Load the ensemble once on startup so each completed flow can reuse it.
+        self.ensemble = CrossSecureEnsemble()
 
         # Keep active flows in memory behind a lock because capture and cleanup run in separate threads.
         self.flows = {}
@@ -423,32 +361,6 @@ class LiveTrafficCapture:
         self.stop_event = threading.Event()
         self.capture = None
         self.interface = None
-
-    def load_feature_names(self):
-        """Load saved feature names and fall back to scaler metadata or defaults."""
-        loaded = None
-
-        try:
-            loaded = joblib.load(FEATURES_PATH)
-        except Exception:
-            try:
-                import pickle
-                with open(FEATURES_PATH, "rb") as handle:
-                    loaded = pickle.load(handle)
-            except Exception as exc:
-                print(f"[WARN] Could not load feature_names.pkl: {exc}")
-
-        if isinstance(loaded, (list, tuple)) and loaded:
-            print(f"[INFO] Loaded {len(loaded)} feature name(s) from feature_names.pkl")
-            return list(loaded)
-
-        scaler_features = getattr(self.scaler, "feature_names_in_", None)
-        if scaler_features is not None and len(scaler_features):
-            print(f"[INFO] Falling back to scaler feature metadata with {len(scaler_features)} column(s)")
-            return list(scaler_features)
-
-        print(f"[INFO] Falling back to default CICIDS-style feature order with {len(DEFAULT_FEATURE_ORDER)} columns")
-        return DEFAULT_FEATURE_ORDER[:]
 
     def canonical_key(self, endpoints):
         """Build a bidirectional flow key so both directions map to the same flow."""
@@ -558,35 +470,36 @@ class LiveTrafficCapture:
             "duration": duration_seconds,
         }
 
-    def align_features(self, feature_dict):
-        """Align extracted features to the trained model's expected input columns."""
-        values = {name: safe_float(feature_dict.get(name, 0.0), 0.0) for name in self.feature_names}
-        return pd.DataFrame([values], columns=self.feature_names)
-
     def predict_flow(self, flow):
         """Run inference for a completed flow and prepare a JSON-safe alert payload."""
         features = self.build_feature_dict(flow)
-        model_input = self.align_features(features)
-
-        scaled = self.scaler.transform(model_input)
-        proba = float(self.model.predict_proba(scaled)[0][1])
-        prediction = 1 if proba >= self.threshold else 0
-        confidence = round(proba * 100, 2)
+        result = self.ensemble.predict(features)
 
         src_ip, dst_ip, src_port, dst_port, protocol = flow.display_endpoints
-        return {
+        payload = {
             "src_ip": src_ip,
             "dst_ip": dst_ip,
+            "src_host": resolve_hostname(src_ip),
+            "dst_host": resolve_hostname(dst_ip),
             "src_port": src_port,
             "dst_port": dst_port,
             "protocol": protocol,
-            "prediction": prediction,
-            "label": "ATTACK" if prediction == 1 else "NORMAL",
-            "confidence": f"{confidence:.2f}%",
+            "prediction": result["prediction"],
+            "label": result["label"],
+            "confidence": f"{result['confidence']:.2f}%",
             "timestamp": utc_now_iso(),
             "flow_duration": round((flow.last_seen - flow.first_seen) * 1000.0, 3),
             "packets_count": flow.packet_count,
+            "cicids_confidence": result["cicids_proba"],
+            "nslkdd_confidence": result["nslkdd_proba"],
+            "models_agreed": result["models_agreed"],
+            "ensemble_mode": True,
         }
+
+        if result.get("fallback"):
+            payload["fallback"] = True
+
+        return payload
 
     def send_alert(self, payload):
         """Send the completed flow prediction to the Flask API."""
